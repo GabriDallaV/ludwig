@@ -27,6 +27,7 @@
 #include "psi_force.h"
 #include "psi_gradients.h"
 #include "psi_init.h"
+#include "psi_sor.h"
 
 int psi_force_gradmu_e(psi_t * psi, fe_t * fe, hydro_t * hydro,
 		       colloids_info_t * cinfo);
@@ -108,6 +109,7 @@ int psi_force_gradmu_e(psi_t * psi, fe_t * fe, hydro_t * hydro,
   psi_unit_charge(psi, &eunit);
   reunit = 1.0/eunit;
   double force_adv[3];
+  double force_per[3];
 
   for (ic = 1; ic <= nlocal[X]; ic++) {
     for (jc = 1; jc <= nlocal[Y]; jc++) {
@@ -129,17 +131,27 @@ int psi_force_gradmu_e(psi_t * psi, fe_t * fe, hydro_t * hydro,
           force[ia] = rho_elec*e[ia];
         }
 
-        force_adv[X] = rho_elec * ef_adv[X] * reunit * kt;
+         force_adv[X] = rho_elec * ef_adv[X] * reunit * kt;
         force_adv[Y] = rho_elec * ef_adv[Y] * reunit * kt;
         force_adv[Z] = rho_elec * ef_adv[Z] * reunit * kt;
 
+        force_per[X] = rho_elec * ef_per[ic-1] * reunit * kt;
+        force_per[Y] = 0.0;
+        force_per[Z] = 0.0;
+        //force_per[X] = 0.0;
+
         //printf("Force E_ADV[X]: %.15f vs ef[X]: %.15f \n", ef_adv[X], e[X]);
 
-        force[X] = force[X] + force_adv[X];
+        force[X] = force[X] + force_adv[X] + force_per[X];
         force[Y] = force[Y] + force_adv[Y];
         force[Z] = force[Z] + force_adv[Z];
         /* If solid, accumulate contribution to colloid;
           otherwise to fluid node */
+		  
+		//force[X] = 0.0;
+        //force[Y] = 0.0;
+        //force[Z] = 0.0;  
+		
 
         if (pc) {
           pc->force[X] += force[X];

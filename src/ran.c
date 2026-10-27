@@ -68,6 +68,7 @@ __host__ int ran_init_rt(pe_t * pe, rt_t * rt) {
   /* Look for "random_seed" in the user input, or use a default. */ 
 
   n = rt_int_parameter(rt, "random_seed", &scalar_seed);
+  
 
   if (n == 0) {
     pe_info(pe, "[Default] Random number seed: %d\n", scalar_seed);

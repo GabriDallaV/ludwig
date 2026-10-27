@@ -291,6 +291,8 @@ static int noise_initialise_state(noise_t * ns) {
 
   state0[0] = ns->options.seed;
 
+  
+
   cs_ntotal(ns->cs, ntotal);
   cs_nlocal(ns->cs, nlocal);
   cs_nlocal_offset(ns->cs, noffset);
@@ -302,41 +304,41 @@ static int noise_initialise_state(noise_t * ns) {
     for (int jc = 1 - nextra; jc <= nlocal[Y] + nextra; jc++) {
       for (int kc = 1 - nextra; kc <= nlocal[Z] + nextra; kc++) {
 
-	int ig = noffset[X] + ic;
-	int jg = noffset[Y] + jc;
+	      int ig = noffset[X] + ic;
+	      int jg = noffset[Y] + jc;
         int kg = noffset[Z] + kc;
 
-	unsigned int state_local[NNOISE_STATE] = {0};
+	      unsigned int state_local[NNOISE_STATE] = {0};
 
-	if (ig < 1) ig += ntotal[X];
-	if (ig > ntotal[X]) ig -= ntotal[X];
-	if (jg < 1) jg += ntotal[Y];
-	if (jg > ntotal[Y]) jg -= ntotal[Y];
+        if (ig < 1) ig += ntotal[X];
+        if (ig > ntotal[X]) ig -= ntotal[X];
+        if (jg < 1) jg += ntotal[Y];
+        if (jg > ntotal[Y]) jg -= ntotal[Y];
         if (kg < 1) kg += ntotal[Z];
         if (kg > ntotal[Z]) kg -= ntotal[Z];
 
-	/* Set state */
+        /* Set state */
 
-	state_local[0] = state0[0] + ig;
-	state_local[1] = state0[1] + jg;
-	state_local[2] = state0[2] + kg;
-	state_local[3] = state0[3];
+        state_local[0] = state0[0] + ig;
+        state_local[1] = state0[1] + jg;
+        state_local[2] = state0[2] + kg;
+        state_local[3] = state0[3];
 
-	/* At this point, state_local[3] looks the same for all
-	 * jc, kc etc. So run through generator once to produce
-	 * unique seeds at each lattice point, which are the
-	 * ones we use. */
+        /* At this point, state_local[3] looks the same for all
+        * jc, kc etc. So run through generator once to produce
+        * unique seeds at each lattice point, which are the
+        * ones we use. */
 
-	{
-	  int index = cs_index(ns->cs, ic, jc, kc);
-	  unsigned int state[NNOISE_STATE] = {0};
-	  state[0] = ns_uniform(state_local);
-	  state[1] = ns_uniform(state_local);
-	  state[2] = ns_uniform(state_local);
-	  state[3] = ns_uniform(state_local);
+        {
+          int index = cs_index(ns->cs, ic, jc, kc);
+          unsigned int state[NNOISE_STATE] = {0};
+          state[0] = ns_uniform(state_local);
+          state[1] = ns_uniform(state_local);
+          state[2] = ns_uniform(state_local);
+          state[3] = ns_uniform(state_local);
 
-	  noise_state_set(ns, index, state);
-	}
+          noise_state_set(ns, index, state);
+        }
       }
     }
   }

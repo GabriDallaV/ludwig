@@ -17,6 +17,7 @@
 #include <assert.h>
 #include <stdio.h>
 #include <string.h>
+#include <math.h>
  
 #include "pe.h"
 #include "coords.h"
@@ -33,6 +34,7 @@ static double *mask0 = NULL;
 
 //ADVECTIVE EF
 double ef_adv[3] = {0.0, 0.0, 0.0};
+double *ef_per = NULL;
 
 
 //ASSONE
@@ -637,8 +639,6 @@ int psi_evolve_potential_shift(psi_t * psi, map_t * map) {
 int psi_evolve_potential_cont(psi_t * psi, map_t * map, int ts) {
 
   int ic, jc, kc, index, idx;
-  
-
   int nlocal[3];
   int ntotal[3];
   int mpi_cartsz[3];
@@ -673,13 +673,17 @@ int psi_evolve_potential_cont(psi_t * psi, map_t * map, int ts) {
       return -1;
     }
   }
+
+
+
+  
   double tau = 8.0 * 0.85 / 0.02; 
   double t = (double) ts / tau;
 
   for (int i = 0; i < ntotal[X]; i++) { //parte per potenziale rigido
     if (t < 1){
-      //psi_X[i] = POTENTIAL;
-      psi_X[i] = POTENTIAL * (7.00672*t-5.94127*t*t);
+      psi_X[i] = POTENTIAL;
+      //psi_X[i] = POTENTIAL * (7.00672*t-5.94127*t*t);
       //psi_X[i] = POTENTIAL * (70.6209*t-185.181*t*t+115.56*t*t*t); 
       //psi_X[i] = POTENTIAL * (315.12*t-1551.52*t*t+2297.38*t*t*t-1059.98*t*t*t*t);
       //psi_X[i] = POTENTIAL * (959.596*t-7254.27*t*t+18049.7*t*t*t-18367.9*t*t*t*t+6613.96*t*t*t*t*t);
@@ -815,6 +819,51 @@ int psi_evolve_potential_cont(psi_t * psi, map_t * map, int ts) {
   map_halo(map);
   free(psi_X);
   
+  return 0;
+}
+
+int electric_field_periodic(psi_t * psi){
+
+  int ic;
+  int nlocal[3];
+  int ntotal[3];
+
+  int noffset[3];
+  const double pi = 3.14159265358979323846;
+  
+
+  cs_nlocal(psi->cs, nlocal);
+  cs_ntotal(psi->cs, ntotal);
+  cs_nlocal_offset(psi->cs, noffset);
+	
+  
+  if (ef_per) free(ef_per);	
+  ef_per = calloc(nlocal[X], sizeof(double));
+  
+  
+  if (ef_per == NULL) {
+	pe_fatal(psi->pe, "ef_per non inizializzato\n");
+  }
+  
+
+  int n = (int) POTENTIAL; // WAVENUMBER
+  double k = 2.0*pi*((double) n)/((double) ntotal[X]); 
+  //double k = POTENTIAL; 
+  double E_0 = 0.0;
+  printf("WAVENUMBER = %f \n", k);
+  //printf("OFFSET = %d \n", noffset[X]);
+
+
+  for (ic = 1; ic <= nlocal[X]; ic++) {
+	  //continue;
+    ef_per[ic-1] = E_0 * sin(k * (ic-1 + noffset[X]));
+    //if (ic < nlocal[X]) ef_per[ic-1] = 0.0;
+    //if (ic >= nlocal[X]) ef_per[ic-1] = 1.0;
+    //printf("x: %d ef_per: %f \n", ic-1, ef_per[ic-1]);
+  }
+  
+  
+
   return 0;
 }
 
@@ -1180,10 +1229,10 @@ int electric_field_time_update(int ts){
   double tau = 0.85 * 8.5 / 0.0002;
   double t = ts / tau;
   if (t < 1){
-    //ef_adv[X] = 0.0;
-    //ef_adv[X] = 0.11765;
+    //ef_adv[X] = 0.001; //005;
+    ef_adv[X] = 0.0;
     //ef_adv[X] = 0.00011765 *(258827.0*t-2.10818e9*t*t+6.39132e12*t*t*t-9.17317e15*t*t*t*t+6.318e18*t*t*t*t*t-1.68577e21*t*t*t*t*t*t);
-	ef_adv[X] = 0.00000011765 *(7006.72*t-5.94127e6*t*t);
+	  //ef_adv[X] = 0.00000011765 *(7006.72*t-5.94127e6*t*t);
     //ef_adv[X] = 0.125 * (7.17729*t-6.17729*t*t); 
     //ef_adv[X] = 0.125 * (25.3915*t-57.568*t*t+33.1765*t*t*t); 
     //ef_adv[X] = 0.125 * (65.5339*t-264.558*t*t+346.885*t*t*t-146.862*t*t*t*t);
@@ -1191,8 +1240,8 @@ int electric_field_time_update(int ts){
     //ef_adv[X] = 0.125 * (272.382*t-2259.58*t*t+6965.41*t*t*t-10156.8*t*t*t*t+7103.66*t*t*t*t*t-1924.03*t*t*t*t*t*t);
   }
   if (t >= 1){
-    ef_adv[X] = 0.11765;
-    //ef_adv[X] = 0.0;
+    ef_adv[X] = 0.0;
+    //ef_adv[X] = 0.001; //005;
   }
   return 0;
 }

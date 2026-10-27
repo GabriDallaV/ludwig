@@ -1,0 +1,85 @@
+##############################################################################
+#
+#  ipnut
+#
+##############################################################################
+N_cycles 2
+##############################################################################
+#
+#  System and MPI
+# 
+##############################################################################
+size 256_72_2
+grid 1_1_1 
+temperature 0.0005
+periodicity 1_1_1
+##############################################################################
+#
+#  Fluid parameters
+#  
+##############################################################################
+viscosity 0.02
+isothermal_fluctuations off
+force 0.00000007_0_0
+##############################################################################
+#
+#  Free energy parameters
+#
+###############################################################################
+free_energy fe_electro
+electrokinetics_init    point_charges_fixed_potential #_continuous #_continuous_from_file #axon_mod 
+velocity_signal         0.0
+potential_init          0.05
+electrokinetics_z0      +1
+electrokinetics_z1      -1
+electrokinetics_d0      0.02
+electrokinetics_d1      0.02
+electrokinetics_eunit   1.0
+electrokinetics_epsilon  72.3 
+electrokinetics_init_rho_el 0.025
+#electric_e0 0.000000118_0.0_0.0
+
+electrokinetics_maxits   10000 #10000
+electrokinetics_solver_type  sor 
+electrokinetics_multisteps 1
+#electrokinetics_rel_tol  0.0005
+#electrokinetics_diffacc  0.1
+
+
+fe_force_method phi_gradmu_correction
+###############################################################################
+#
+#  Walls / boundaries
+#
+###############################################################################
+porous_media_file     yes
+porous_media_io_grid  1_1_1
+porous_media_data     status_only #status_with_sigma #
+
+
+boundary_walls 	      0_1_0
+boundary_walls_slip_active no
+#boundary_walls_slip_fraction_bot 0.0_0.99_0.0
+#boundary_walls_slip_fraction_top 0.0_0.99_0.0
+boundary_walls_slip_fraction_bot 0.0_0.0_0.0
+boundary_walls_slip_fraction_top 0.0_0.0_0.0
+###############################################################################
+#
+#  Output frequency and type
+#
+###############################################################################
+vel_io_freq    2
+freq_statistics 100
+psi_io_freq 2
+
+config_at_end yes
+default_io_mode   mpiio
+default_io_format ascii
+###############################################################################
+#
+#  Miscellaneous
+#
+#  random_seed  +ve integer is the random number generator seed
+#
+################################################################################
+random_seed 8361432

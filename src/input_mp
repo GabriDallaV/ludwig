@@ -1,0 +1,69 @@
+##############################################################################
+#  input  --  test 2D Golestanian (t^2 con correzioni log)
+##############################################################################
+N_cycles 185000               # >= tstart + nsteps
+
+##############################################################################
+#  System and MPI
+##############################################################################
+size 256_3_256                # quasi-2D: campi uniformi lungo z
+grid 1_1_1                    # adatta al numero di processi
+temperature 6.667e-03
+periodicity 1_0_1
+
+##############################################################################
+#  Fluid parameters
+##############################################################################
+viscosity 0.16667             # tau = 1, Sc ~ 8
+lb_fluctuations off
+
+##############################################################################
+#  Electrokinetics
+##############################################################################
+free_energy fe_electro
+electrokinetics_init    point_charges
+potential_init          0.0
+electrokinetics_z0      +1
+electrokinetics_z1      -1
+electrokinetics_nu0     3.0           # D = 0.02
+electrokinetics_nu1     3.0
+electrokinetics_eunit   1.0
+electrokinetics_epsilon     1.20e+05  # kappa^-1 = 2 dx con C0 = 100
+electrokinetics_init_rho_el 100.0
+
+electric_e0                 2.8e-04_0.0_0.0   # campo nel piano (x)
+
+electrokinetics_maxits   10000
+electrokinetics_solver_type  petsc
+electrokinetics_multisteps 1
+
+fe_force_method phi_gradmu_correction
+
+##############################################################################
+#  Tracer
+##############################################################################
+mp_tracer               on
+mp_tracer_valency       0
+mp_tracer_diffusivity   0.01          # D' = D + D_t = 0.03; positivita': |u| < 0.014
+mp_tracer_tstart        100000        # ~2.5 x L^2/(8 pi^2 D): fluttuazioni a regime
+mp_tracer_nsteps        80000         # fine finestra ~ L^2/(4 pi^2 D') ~ 5.5e4
+
+##############################################################################
+#  Walls / boundaries
+##############################################################################
+porous_media_file     yes
+porous_media_io_grid  1_1_1
+porous_media_data     status_only
+boundary_walls        0_1_0
+
+##############################################################################
+#  Output
+##############################################################################
+vel_io_freq    5000000
+freq_statistics 10          # per seguire <u^2> fino allo stazionario
+psi_io_freq 1000000
+config_at_end yes
+default_io_mode   mpiio
+default_io_format ascii
+
+random_seed      227586       # cambialo per ogni realizzazione

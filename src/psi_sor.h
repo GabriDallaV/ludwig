@@ -18,6 +18,9 @@
 
 #include "psi_solver.h"
 
+extern double *psi_ext;
+//extern double *ef_per;
+
 typedef struct psi_solver_sor_s psi_solver_sor_t;
 
 struct psi_solver_sor_s {
@@ -31,6 +34,7 @@ struct psi_solver_sor_s {
 int psi_solver_sor_create(psi_t * psi, psi_solver_sor_t ** sor);
 int psi_solver_sor_free(psi_solver_sor_t ** sor);
 int psi_solver_sor_solve(psi_solver_sor_t * sor, int ntimestep);
+int PSI_ext(psi_t * psi);
 
 /* This might actually be a separate solver type. */
 

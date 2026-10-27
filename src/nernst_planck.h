@@ -19,13 +19,21 @@
 #include "hydro.h"
 #include "map.h"
 #include "colloids.h"
+#include "noise.h"
 
 int nernst_planck_driver(psi_t * psi, fe_t * fe, map_t * map);
 int nernst_planck_driver_d3qx(psi_t * psi, fe_t * fe, hydro_t * hydro,
-			      map_t * map, colloids_info_t * cinfo, int print_current_flag, int timestep);
+			      map_t * map, colloids_info_t * cinfo, int print_current_flag, int timestep, noise_t * noise_ions);
 int nernst_planck_adjust_multistep(psi_t * psi);
 
 int nernst_planck_maxacc(double * acc);
 int nernst_planck_maxacc_set(double acc);
+
+int nernst_planck_eraser_report(pe_t * pe);
+
+extern int * en_filter;
+int def_en_filter(psi_t * psi);
+
+
 
 #endif

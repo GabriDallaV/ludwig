@@ -260,6 +260,8 @@ int phi_cahn_hilliard(phi_ch_t * pch, fe_t * fe, field_t * phi,
     phi_ch_var_flux_driver(var, noise, mobility, kt);
     phi_ch_var_flux_acc_driver(pch, var);
 
+    
+
     field_free(var);
   }
 
@@ -1542,6 +1544,8 @@ __host__ int phi_ch_var_flux_driver(field_t * var,
 
   cs_nlocal(var->cs, nlocal);
 
+  //printf("adfadadddadsaa\n");
+
   {
     /* Fluctuation dissipation says ... */
     double mktvar = sqrt(2.0*mobility*kt);
@@ -1587,12 +1591,44 @@ __global__ static void phi_ch_var_flux_kernel(kernel_3d_t k3d,
     int index0 = kernel_3d_cs_index(&k3d, ic, jc, kc);
 
     double reap[3] = {0};
-    noise_reap_n(noise, index0, 3, reap);
+    noise_reap_n_gauss(noise, index0, 3, reap);
+
+    ///////////////////////
+    //ATTETNTOOOOOOOOOOOOOOO
+    ///////////////////////
+    //mktvar = 1.0;
 
     var->data[addr_rank1(var->nsites, 3, index0, X)] = mktvar*reap[X];
     var->data[addr_rank1(var->nsites, 3, index0, Y)] = mktvar*reap[Y];
     var->data[addr_rank1(var->nsites, 3, index0, Z)] = mktvar*reap[Z];
+    
   }
+
+  /*
+
+  int nlocal[3] = {0};
+  cs_t * cs = NULL;
+  cs = var->cs;
+  assert(cs);
+  cs_nlocal(cs, nlocal);
+
+
+  printf("INIZIO STAMPA FLUSSI \n");
+  for (int ic = 1; ic < nlocal[X]; ic++) {
+    for (int jc = 1; jc < nlocal[Y]; jc++) {
+      for (int kc = 1; kc < nlocal[Z]; kc++) {
+
+        int index0 = kernel_3d_cs_index(&k3d, ic, jc, kc);
+        
+        printf("%d,%d,%d = %.15e %.15e %.15e\n", ic, jc, kc, 
+          var->data[addr_rank1(var->nsites, 3, index0, X)],
+           var->data[addr_rank1(var->nsites, 3, index0, Y)],
+            var->data[addr_rank1(var->nsites, 3, index0, Z)]);
+	    }
+	  }
+	}
+  printf("FINE STAMPA FLUSSI \n");
+  */
 
   return;
 }

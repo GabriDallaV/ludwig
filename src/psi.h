@@ -45,8 +45,12 @@ struct psi_s {
 
   field_t * psi;            /* Electric potential */
   field_t * rho;            /* Charge densities */
+  field_t * jflux;          /* Current J total (jx,jy,jz) for output */
+  field_t * jflux_p;        /* Current J+ positive species (jx,jy,jz) */
+  field_t * jflux_m;        /* Current J- negative species (jx,jy,jz) */
 
   double * diffusivity;     /* Diffusivity for each species */
+  double * mobility_elec;        /* Mobility_elec for each species */
   int * valency;            /* Valency for each species */
   double e;                 /* unit charge */
   double epsilon;           /* first and reference permittivity */
@@ -80,6 +84,7 @@ int psi_finalise(psi_t * psi);
 int psi_nk(psi_t * obj, int * nk);
 int psi_valency(psi_t * obj, int n, int * iv);
 int psi_diffusivity(psi_t * obj, int n, double * diff);
+int psi_mobility_elec(psi_t * obj, int n, double * diff);
 int psi_halo_psi(psi_t * obj);
 int psi_halo_psijump(psi_t * obj);
 int psi_halo_rho(psi_t * obj);

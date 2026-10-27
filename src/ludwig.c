@@ -106,6 +106,8 @@
 #include "psi_colloid.h"
 #include "nernst_planck.h"
 #include "psi_init.h"
+#include "psi_sor.h"
+#include "moment_propagation.h"
 
 /* Statistics */
 #include "stats_colloid.h"
@@ -290,9 +292,15 @@ static int ludwig_rt(ludwig_t * ludwig) {
     bbl_didt_method_set(ludwig->bbl, ellipsoid_didt);
   }
 
+  int seed = 0;
+
+  if (rt_int_parameter(rt, "random_seed", &seed) == 0) {
+    pe_fatal(pe, "random_seed non trovato nell'input\n");
+  }
+
   /* If any noise required ... */
   if (ludwig->lb->param->noise || (ludwig->pch && ludwig->pch->info.noise)) {
-    noise_options_t opts = noise_options_default();
+    noise_options_t opts = noise_options_seed(seed);
     noise_create(pe, cs, &opts, &ludwig->noise);
   }
 
@@ -467,7 +475,33 @@ void ludwig_run(const char * inputfile) {
   if (ATTIVA_EF_t == 1){
     printf("TIME DEPENDENT ELECTRIC FIELD ACTIVATED \n");
   }
-  
+
+  int ATTIVA_EF_periodic = 1; // 0 = no, 1 = yes 
+  // ATTENTO FORSE E MEGLIO TENERLO SEMPRE ON PERCHE SENNO CREA PETTINI 
+  if (ATTIVA_EF_periodic == 1){
+    printf("PERIODIC ELECTRIC FIELD ACTIVATED \n");
+  }
+
+
+  //FILTRO ENERGETICO MARCOTTE ET AL.
+  int ATTIVA_FILTRO_ENERGETICO = 0;
+  if (ATTIVA_FILTRO_ENERGETICO == 1){
+    printf("ENERGY FILTER ACTIVATED \n");
+  }
+
+  //ATTIVA CAMPO ELETTRICO ESTERNO.
+  int ATTIVA_EXT_PSI = 0;
+  if (ATTIVA_EXT_PSI == 1){
+    printf("ENERGY FILTER ACTIVATED \n");
+  }
+
+  //FLUTTUAZIONI TERMICHE SU IONI
+  int noise_ions_active = 1;
+  if (noise_ions_active == 1){
+    printf("FLUTTUAZIONI TERMICHE SU IONI ATTIVE \n");
+  }
+
+   
 
   char    filename[FILENAME_MAX];
   int     is_porous_media = 0;
@@ -553,6 +587,40 @@ void ludwig_run(const char * inputfile) {
     }
   }
 
+  /*
+  noise_t * noise_ions = NULL;W
+  if (noise_ions_active == 1) {
+    noise_options_t opts = noise_options_default();
+    noise_create(ludwig->pe, ludwig->cs, &opts, &noise_ions);
+  }
+  */
+
+  noise_t * noise_ions = NULL;
+
+  if (noise_ions_active == 1) {
+
+    int seed = 0;
+    int has_seed = 0;
+    int ion_seed = 0;
+
+    has_seed = rt_int_parameter(ludwig->rt, "random_seed", &seed);
+
+    if (has_seed == 0) {
+      pe_fatal(ludwig->pe, "random_seed non trovato nell'input\n");
+    }
+
+    ion_seed = seed + 7919;
+
+    pe_info(ludwig->pe, "Base random seed:      %d\n", seed);
+    pe_info(ludwig->pe, "Ion noise random seed: %d\n", ion_seed);
+
+    noise_create_seed(ludwig->pe, ludwig->cs, ion_seed, &noise_ions);
+  }
+
+
+  /* Charged tracer VACF via moment propagation (optional) */
+  mp_tracer_t * mp_tracer = NULL;
+  mp_tracer_create_rt(ludwig->pe, ludwig->cs, ludwig->rt, &mp_tracer);
 
   statvel.print_vol_flux = rt_switch(ludwig->rt, "stats_vel_print_vol_flux");
 
@@ -586,6 +654,14 @@ void ludwig_run(const char * inputfile) {
 
   /* sync tasks before main loop for timing purposes */
   MPI_Barrier(comm);
+
+  if (ATTIVA_EF_periodic == 1){
+     electric_field_periodic(ludwig->psi);
+  }
+
+  if (ATTIVA_EXT_PSI == 1){
+    PSI_ext(ludwig->psi);
+  }
 
   while (physics_control_next_step(ludwig->phys)) {
 
@@ -626,6 +702,10 @@ void ludwig_run(const char * inputfile) {
 
     if (ATTIVA_EF_t == 1){
       electric_field_time_update(ludwig->tk.timestep);
+    }
+
+    if (ATTIVA_FILTRO_ENERGETICO == 1){
+      def_en_filter(ludwig->psi);
     }
 
     TIMER_start(TIMER_STEPS);
@@ -709,6 +789,7 @@ void ludwig_run(const char * inputfile) {
       TIMER_start(TIMER_ELECTRO_POISSON);
 
       ludwig->poisson->impl->solve(ludwig->poisson, step);
+      
 
       TIMER_stop(TIMER_ELECTRO_POISSON);
 
@@ -732,12 +813,12 @@ void ludwig_run(const char * inputfile) {
 	psi_halo_rho(ludwig->psi);
 	TIMER_stop(TIMER_HALO_LATTICE);
 
+
 	/* Force calculation is only once per LB timestep */
 	if (im == 0) {
 
 	  TIMER_start(TIMER_FORCE_CALCULATION);
 	  psi_force_method(ludwig->psi, &flag);
-
           /* Force input as gradient of chemical potential
                  with integrated momentum correction       */
 	  if (flag == PSI_FORCE_GRADMU) {
@@ -745,27 +826,27 @@ void ludwig_run(const char * inputfile) {
 			     ludwig->hydro,
 			     ludwig->map, ludwig->collinfo);
 	  }
-
           /* Force calculation as divergence of stress tensor */
 	  if (flag == PSI_FORCE_DIVERGENCE) {
 	    psi_force_divstress(ludwig->psi, ludwig->fe, ludwig->hydro,
 				ludwig->collinfo);
 	  }
 	  TIMER_stop(TIMER_FORCE_CALCULATION);
-
 	}
 
 	TIMER_start(TIMER_ELECTRO_NPEQ);
   
   int print_current_flag = 0;
   
-  if ((ludwig->tk.timestep % ludwig->psi->psi->opts.iodata.iofreq) == 0){//physics_control_ntimesteps(ludwig->phys)-1) {
-    //printf("Printing current at timestep: %d\n", ludwig->tk.timestep);
-    print_current_flag = 1;
+  /* Same condition as psi_io_write(): use "step" (1..N), not
+   * tk.timestep (0..N-1), and also write at the config/final step */
+  {
+    int output = (0 == util_mod(step, ludwig->psi->psi->opts.iodata.iofreq));
+    if (output || is_config_step()) print_current_flag = 1;
   }
-  
+
 	nernst_planck_driver_d3qx(ludwig->psi, ludwig->fe, ludwig->hydro,
-				  ludwig->map, ludwig->collinfo, print_current_flag, ludwig->tk.timestep);
+				  ludwig->map, ludwig->collinfo, print_current_flag, step, noise_ions);
           print_current_flag = 0;
 	TIMER_stop(TIMER_ELECTRO_NPEQ);
 
@@ -785,7 +866,6 @@ void ludwig_run(const char * inputfile) {
       nernst_planck_adjust_multistep(ludwig->psi);
       psi_zero_mean(ludwig->psi);
     }
-
     /* order parameter dynamics (not if symmetric_lb) */
 
     if (ludwig->lb->ndist == 2) {
@@ -834,7 +914,6 @@ void ludwig_run(const char * inputfile) {
 	  if (ludwig->fe && ludwig->hydro && ludwig->fe->id == FE_TERNARY) {
             hydro_correct_momentum(ludwig->hydro);
 	  }
-
 	}
 	else {
 	  if (ludwig->pth->method == FE_FORCE_METHOD_STRESS_DIVERGENCE) {
@@ -888,7 +967,6 @@ void ludwig_run(const char * inputfile) {
 
       TIMER_stop(TIMER_ORDER_PARAMETER_UPDATE);
     }
-
     if (ludwig->hydro) {
 
       /* Zero velocity field here, as velocity at collision is used
@@ -911,6 +989,9 @@ void ludwig_run(const char * inputfile) {
 		 ludwig->fe, ludwig->visc);
 
       TIMER_stop(TIMER_COLLIDE);
+
+      /* Moment propagation needs post-collision f_i (before bbl) */
+      mp_tracer_run(mp_tracer, step, ludwig->lb, ludwig->psi, ludwig->map);
 
 
       /* Boundary conditions */
@@ -1111,6 +1192,9 @@ void ludwig_run(const char * inputfile) {
   /* End of time step loop. A barrier, before closing down. */
   MPI_Barrier(comm);
 
+
+  nernst_planck_eraser_report(ludwig->pe);
+
   /* Shut down cleanly. Give the timer statistics. Finalise PE. */
 
   if (ludwig->poisson) ludwig->poisson->impl->free(&ludwig->poisson);
@@ -1144,6 +1228,8 @@ void ludwig_run(const char * inputfile) {
   if (ludwig->noise_rho) noise_free(ludwig->noise_rho);
 #else
   if (ludwig->noise)     noise_free(&ludwig->noise);
+  if (noise_ions)        noise_free(&noise_ions);
+  if (mp_tracer)         mp_tracer_free(&mp_tracer);
 #endif
   if (ludwig->be)        beris_edw_free(ludwig->be);
   if (ludwig->map)       map_free(&ludwig->map);

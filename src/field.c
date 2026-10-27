@@ -38,6 +38,10 @@
 #include "util.h"
 #include "field.h"
 
+/* Max. nf for the per-site i/o buffers (NQAB = 5 is too small for e.g.
+ * the 9-component flux field) */
+#define FIELD_IO_NFMAX 16
+
 static int field_data_touch(field_t * field);
 static int field_leesedwards_parallel(field_t * obj);
 
@@ -895,9 +899,10 @@ int field_scalar_array_set(field_t * obj, int index, const double * array) {
 
 int field_write_buf(field_t * field, int index, char * buf) {
 
-  double array[NQAB] = {0};
+  double array[FIELD_IO_NFMAX] = {0};
 
   assert(field);
+  assert(field->nf <= FIELD_IO_NFMAX);
 
   field_scalar_array(field, index, array);
   memcpy(buf, array, field->nf*sizeof(double));
@@ -915,10 +920,11 @@ int field_write_buf(field_t * field, int index, char * buf) {
 
 int field_read_buf(field_t * field, int index, const char * buf) {
 
-  double array[NQAB] = {0};
+  double array[FIELD_IO_NFMAX] = {0};
 
   assert(field);
   assert(buf);
+  assert(field->nf <= FIELD_IO_NFMAX);
 
   memcpy(array, buf, field->nf*sizeof(double));
   field_scalar_array_set(field, index, array);
@@ -938,11 +944,12 @@ int field_write_buf_ascii(field_t * field, int index, char * buf) {
 
   const int nbyte = 23;
 
-  double array[NQAB] = {0};
+  double array[FIELD_IO_NFMAX] = {0};
   int ifail = 0;
 
   assert(field);
   assert(buf);
+  assert(field->nf <= FIELD_IO_NFMAX);
 
   field_scalar_array(field, index, array);
 
@@ -976,11 +983,12 @@ int field_read_buf_ascii(field_t * field, int index, const char * buf) {
 
   const int nbyte = 23;
 
-  double array[NQAB] = {0};
+  double array[FIELD_IO_NFMAX] = {0};
   int ifail = 0;
 
   assert(field);
   assert(buf);
+  assert(field->nf <= FIELD_IO_NFMAX);
 
   for (int n = 0; n < field->nf; n++) {
     /* First, make sure we have a \0, before sscanf() */

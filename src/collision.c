@@ -280,7 +280,8 @@ void lb_collision_mrt1_site(lb_t * lb, hydro_t * hydro, map_t * map,
 
   const double rdim = (1.0/NDIM);         /* 1 / dimension */
   KRONECKER_DELTA_CHAR(d);                /* delta_ab */
-
+  
+  
   assert(lb);
   assert(lb->param);
   assert(hydro);
@@ -466,6 +467,8 @@ void lb_collision_mrt1_site(lb_t * lb, hydro_t * hydro, map_t * map,
       }
     }
   }
+  
+  int suppress_fluct_z = 0;
 
   if (lb->param->noise) {
 
@@ -487,14 +490,29 @@ void lb_collision_mrt1_site(lb_t * lb, hydro_t * hydro, map_t * map,
 	var = lb_fluctuations_var_eta(1.0/rtau[iv], _cp.kt);
 	var_bulk = lb_fluctuations_var_bulk(1.0/rtau_bulk[iv], _cp.kt);
 	lb_fluctuations_stress(noise, index0 + iv, var, var_bulk, shat1);
-
+	
+	if (suppress_fluct_z) {
+		shat1[X][Z] = 0.0;
+		shat1[Z][X] = 0.0;
+		shat1[Y][Z] = 0.0;
+		shat1[Z][Y] = 0.0;
+		shat1[Z][Z] = 0.0;
+		
+		//shat1[X][X] = 0.0;
+		//shat1[X][Y] = 0.0;
+		//shat1[Y][Y] = 0.0;
+		//shat1[Y][X] = 0.0;
+	}
+	
 	for (ia = 0; ia < NDIM; ia++) {
 	  for (ib = 0; ib < NDIM; ib++) {
 	    shat[ia][ib][iv] = shat1[ia][ib];
 	  }
 	}
+	
 
-	if (lb->param->isghost == LB_GHOST_ON) {
+
+	if (lb->param->isghost == LB_GHOST_ON && suppress_fluct_z != 1) {
 	  /* TODO rtau_ghost to be vectorised */
 	  for (ia = 0; ia < NVEL; ia++) {
 	    rtau_ghost_tmp[ia] = rtau_ghost[ia][iv];
@@ -1657,7 +1675,7 @@ static __host__ __device__
    * in practice always 3d (= 6 elements) required */
 
   noise_reap_n(noise, index, 6, random);
-
+    
   shat[X][X] = random[0];
   shat[X][Y] = random[1];
   shat[X][Z] = random[2];
@@ -1815,6 +1833,7 @@ __host__ __device__ int lb_fluctuations_stress(noise_t * noise, int index,
    * in practice always 3d (= 6 elements) required */
 
   noise_reap_n(noise, index, 6, random);
+  
 
   shat[X][X] = random[0];
   shat[X][Y] = random[1];
@@ -1856,7 +1875,8 @@ __host__ __device__ int lb_fluctuations_stress(noise_t * noise, int index,
   shat[X][X] += tr;
   shat[Y][Y] += tr;
   shat[Z][Z] += tr;
-
+  
+  
   return 0;
 }
 

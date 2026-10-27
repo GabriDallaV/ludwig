@@ -118,6 +118,8 @@ int psi_rt_init_rho(pe_t * pe, rt_t * rt, psi_t * obj, map_t * map) {
       double e      = obj->e;
       double dplus  = obj->diffusivity[0];
       double dminus = obj->diffusivity[1];
+      double nuplus  = obj->mobility_elec[0];
+      double numinus = obj->mobility_elec[1];
       double psi_p  = dplus*dminus*delta_el/(beta*e*(dplus + dminus)*rho_el);
       double tau_e  = obj->epsilon/(beta*e*e*(dplus + dminus)*rho_el);
       pe_info(pe, "Saturation potential:        %14.7e\n", psi_p);
@@ -187,14 +189,12 @@ int psi_rt_init_rho(pe_t * pe, rt_t * rt, psi_t * obj, map_t * map) {
     psi_init_sigma(obj,map);
   }
 
-  if (strcmp(value, "point_charges_fixed_potential") == 0) {
+    if (strcmp(value, "point_charges_fixed_potential") == 0) {
 
     pe_info(pe, "Initial conditions:        %s\n", "Point or surface charges from file");
 
     n = rt_double_parameter(rt, "electrokinetics_init_rho_el", &rho_el);
-    pot = rt_double_parameter(rt, "potential_init", &POTENTIAL);
     if (n == 0) pe_fatal(pe, "... please set electrokinetics_init_rho_el\n");
-    if (pot == 0) pe_fatal(pe, "... please set potential value\n");
     pe_info(pe, "Initial condition rho_el: %14.7e\n", rho_el);
     psi_debye_length1(&opts, rho_el, &ld);
     pe_info(pe, "Debye length:             %14.7e\n", ld);
@@ -247,11 +247,12 @@ int psi_rt_init_rho(pe_t * pe, rt_t * rt, psi_t * obj, map_t * map) {
     /* Set background charge densities */
     psi_init_uniform(obj, rho_el);
 
-    /* Set surface charge */
+    /* Set surface charge 
     n = rt_string_parameter(rt, "porous_media_file", filestub, FILENAME_MAX);
     if (n == 0) pe_fatal(pe, " ... please provide porous media file\n");
     pe_info(pe, "\nInitialisation of point or surface charges from file %s.001-001\n", filestub);
     psi_evolve_potential_cont(obj,map,t);
+    */
   }
   
   if (strcmp(value, "point_charges_fixed_potential_density_from_file") == 0) {
@@ -440,6 +441,9 @@ int psi_options_rt(pe_t * pe, cs_t * cs, rt_t * rt, psi_options_t * popts) {
   rt_double_parameter(rt, "electrokinetics_d0", &opts.diffusivity[0]);
   rt_double_parameter(rt, "electrokinetics_d1", &opts.diffusivity[1]);
 
+  rt_double_parameter(rt, "electrokinetics_nu0", &opts.mobility_elec[0]);
+  rt_double_parameter(rt, "electrokinetics_nu1", &opts.mobility_elec[1]);
+
   rt_int_parameter(rt,    "electrokinetics_z0", &opts.valency[0]);
   rt_int_parameter(rt,    "electrokinetics_z1", &opts.valency[1]);
 
@@ -559,6 +563,7 @@ int psi_info(pe_t * pe, const psi_t * psi) {
   for (int n = 0; n < psi->nk; n++) {
     pe_info(pe, "Valency species %d:         %2d\n", n, psi->valency[n]);
     pe_info(pe, "Diffusivity species %d:     %14.7e\n", n, psi->diffusivity[n]);
+    pe_info(pe, "Mobility species %d:     %14.7e\n", n, psi->mobility_elec[n]);
   }
 
   /* Add full information ... */

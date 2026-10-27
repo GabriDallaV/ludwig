@@ -34,7 +34,10 @@
 #include "psi_sor.h"
 #include "util.h"
 #include "psi_init.h"
+#include "psi_rt.h"
 
+double *psi_ext = NULL;
+//double *ef_per = NULL;
 
 /* Function table */
 
@@ -247,6 +250,7 @@ int psi_solver_sor_solve(psi_solver_sor_t * sor, int its) {
   assert(ntotal[Y] % 2 == 0);
   assert(ntotal[Z] % 2 == 0);
 
+  //assert(psi_ext != NULL);
   /* Compute initial norm of the residual */
 
   radius = 1.0 - 0.5*pow(4.0*atan(1.0)/dmax(ltot[X],ltot[Z]), 2);
@@ -436,13 +440,22 @@ int psi_solver_sor_solve(psi_solver_sor_t * sor, int its) {
 				  ///* 6-point stencil of Laplacian 
 
 				  dpsi
-					= psidata[addr_rank0(nsites, index + xs)]
-					+ psidata[addr_rank0(nsites, index - xs)]
+					= psidata[addr_rank0(nsites, index + xs)] 
+					+ psidata[addr_rank0(nsites, index - xs)] 
 					+ psidata[addr_rank0(nsites, index + ys)]
 					+ psidata[addr_rank0(nsites, index - ys)]
 					+ psidata[addr_rank0(nsites, index + zs)]
 					+ psidata[addr_rank0(nsites, index - zs)]
-					- 6.0*psidata[addr_rank0(nsites, index)];
+					- 6.0*psidata[addr_rank0(nsites, index)]; 
+          
+          /*
+          double dpsi_ext
+          = psi_ext[ic + 1]
+          + psi_ext[ic - 1]
+          - 2.0*psi_ext[ic];
+          
+          dpsi = dpsi + dpsi_ext;
+          */
 
 				  ///* Non-dimensional potential in Poisson eqn requires e/kT 
 
@@ -461,22 +474,22 @@ int psi_solver_sor_solve(psi_solver_sor_t * sor, int its) {
             }
 			
 			if (pass == 0){
-				if (kst % 2 == 0) { //se è l'ultimo implica che: x disp
-				counter = counter - 2 + 1 + shift_z; //ricordati il +2 che c'è sopra
+				if (kst % 2 == 0) { //se ï¿½ l'ultimo implica che: x disp
+				counter = counter - 2 + 1 + shift_z; //ricordati il +2 che c'ï¿½ sopra
 				//printf("checkpoint 3 counter: %d numero riga file: %d \n", counter, fixed_potential[counter]);
 				}
-				else if (kst % 2 != 0) { //se è l'ultimo implica che: x pari
-				  counter = counter - 2 + 3 + shift_z; //ricordati il +2 che c'è sopra
+				else if (kst % 2 != 0) { //se ï¿½ l'ultimo implica che: x pari
+				  counter = counter - 2 + 3 + shift_z; //ricordati il +2 che c'ï¿½ sopra
 				  //printf("checkpoint 3 counter: %d numero riga file: %d \n", counter, fixed_potential[counter]);
 				}
 			}
 			if (pass == 1){
-				if (kst % 2 == 0) { //se è l'ultimo implica che: x pari
-				counter = counter - 2 + 1 + shift_z; //ricordati il +2 che c'è sopra
+				if (kst % 2 == 0) { //se ï¿½ l'ultimo implica che: x pari
+				counter = counter - 2 + 1 + shift_z; //ricordati il +2 che c'ï¿½ sopra
 				//printf("checkpoint 3 counter: %d numero riga file: %d \n", counter, fixed_potential[counter]);
 				}
-				else if (kst % 2 != 0) { //se è l'ultimo implica che: x disp 
-				  counter = counter - 2 + 3 + shift_z; //ricordati il +2 che c'è sopra
+				else if (kst % 2 != 0) { //se ï¿½ l'ultimo implica che: x disp 
+				  counter = counter - 2 + 3 + shift_z; //ricordati il +2 che c'ï¿½ sopra
 				  //printf("checkpoint 3 counter: %d numero riga file: %d \n", counter, fixed_potential[counter]);
 				}
 			}
@@ -484,7 +497,7 @@ int psi_solver_sor_solve(psi_solver_sor_t * sor, int its) {
         }
         if (pass == 0){
           if (ic % 2 != 0) { //ritorna semplicemente counter + 2 come dentro il ciclo proncipale
-            counter = counter - 1 + 2 + shift_y; // ntotal[Z] / mpi_cartsz[Z] * mpicoords[Z] +1; //ricordati il +2 che c'è sopra
+            counter = counter - 1 + 2 + shift_y; // ntotal[Z] / mpi_cartsz[Z] * mpicoords[Z] +1; //ricordati il +2 che c'ï¿½ sopra
           }
           else if (ic % 2 == 0) { 
             counter = counter + 2 - 3 + shift_y;
@@ -493,7 +506,7 @@ int psi_solver_sor_solve(psi_solver_sor_t * sor, int its) {
 
         if (pass == 1){
           if (ic % 2 == 0) {
-            counter = counter - 1 + 2 + shift_y;// ntotal[Z] / mpi_cartsz[Z] * mpicoords[Z] +1; //ricordati il +2 che c'è sopra
+            counter = counter - 1 + 2 + shift_y;// ntotal[Z] / mpi_cartsz[Z] * mpicoords[Z] +1; //ricordati il +2 che c'ï¿½ sopra
           }
           else if (ic % 2 != 0) { 
             counter = counter + 2 - 3 + shift_y;
@@ -741,8 +754,8 @@ int psi_solver_sor_var_epsilon_solve(psi_solver_sor_t * sor, int its) {
 	    /* Laplacian part of operator */
 
 	    depsi += eps0*(-6.0*psidata[addr_rank0(nsites, index)]
-			   + psidata[addr_rank0(nsites, index + xs)]
-			   + psidata[addr_rank0(nsites, index - xs)]
+			   + psidata[addr_rank0(nsites, index + xs)] 
+			   + psidata[addr_rank0(nsites, index - xs)] 
 			   + psidata[addr_rank0(nsites, index + ys)]
 			   + psidata[addr_rank0(nsites, index - ys)]
 			   + psidata[addr_rank0(nsites, index + zs)]
@@ -831,6 +844,69 @@ int psi_solver_sor_var_epsilon_solve(psi_solver_sor_t * sor, int its) {
       }
     }
   }
+
+  return 0;
+}
+
+/*****************************************************************************
+ *
+ *  CAMPO ESTERNO
+ *
+ *  
+ *****************************************************************************/
+
+int PSI_ext(psi_t * psi) {
+
+  int nlocal[3];
+  int ntotal[3];
+  int noffset[3];
+
+  cs_nlocal(psi->cs, nlocal);
+  cs_ntotal(psi->cs, ntotal);
+  cs_nlocal_offset(psi->cs, noffset);
+
+  free(psi_ext);
+  psi_ext = NULL;
+
+  psi_ext = calloc(nlocal[X] + 2, sizeof(double));
+  //ef_per = calloc(nlocal[X], sizeof(double));
+  assert(psi_ext);
+
+  double * psi_ext_global = NULL;
+  psi_ext_global = calloc(ntotal[X], sizeof(double));
+  assert(psi_ext_global);
+
+  const double pi = 3.14159265358979323846;
+  const double E0 = 0.0001;
+  const double K  = 2.0*pi*16/ntotal[X];
+
+  /* Costruzione del vettore globale */
+  for (int gx = 0; gx < ntotal[X]; gx++) {
+    psi_ext_global[gx] = E0*cos(K*gx)/K;
+  }
+
+  /* Copia della parte locale */
+  for (int ic = 1; ic <= nlocal[X]; ic++) {
+    int gx = noffset[X] + (ic - 1);
+    psi_ext[ic] = psi_ext_global[gx];
+    //ef_per[ic-1] = E0 * sin(K*0 * (ic-1 + noffset[X]));
+  }
+
+  /* Halo sinistro */
+  {
+    int gx_left = noffset[X] - 1;
+    if (gx_left < 0) gx_left += ntotal[X];
+    psi_ext[0] = psi_ext_global[gx_left];
+  }
+
+  /* Halo destro */
+  {
+    int gx_right = noffset[X] + nlocal[X];
+    if (gx_right >= ntotal[X]) gx_right -= ntotal[X];
+    psi_ext[nlocal[X] + 1] = psi_ext_global[gx_right];
+  }
+
+  free(psi_ext_global);
 
   return 0;
 }

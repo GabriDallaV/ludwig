@@ -102,13 +102,17 @@ int psi_initialise(pe_t * pe, cs_t * cs, const psi_options_t * opts,
   psi->e0[Z] = opts->e0[Z];
 
   psi->diffusivity = (double *) calloc(opts->nk, sizeof(double));
+  psi->mobility_elec = (double *) calloc(opts->nk, sizeof(double));
   psi->valency = (int *) calloc(opts->nk, sizeof(int));
 
-  if (psi->diffusivity == NULL) pe_fatal(pe, "psi->diffusivity failed\n");
+  //if (psi->diffusivity == NULL) pe_fatal(pe, "psi->diffusivity failed\n");
+  if (psi->mobility_elec == NULL) pe_fatal(pe, "psi->mobility_elec failed\n");
   if (psi->valency == NULL) pe_fatal(pe, "calloc(psi->valency) failed\n");
 
   for (int n = 0; n < opts->nk; n++) {
     psi->diffusivity[n] = opts->diffusivity[n];
+    psi->mobility_elec[n] = opts->mobility_elec[n];
+
     psi->valency[n]     = opts->valency[n];
   }
 
@@ -127,6 +131,18 @@ int psi_initialise(pe_t * pe, cs_t * cs, const psi_options_t * opts,
     lees_edw_t * le = NULL;
     field_create(pe, cs, le, "psi", &opts->psi, &psi->psi);
     field_create(pe, cs, le, "qsi", &opts->rho, &psi->rho);
+  }
+
+  {
+    /* Currents for output: (jx,jy,jz) total, positive, negative species,
+     * one 3-component field (file) each, like vel.
+     * Use the same i/o options (MPI-IO mode, io grid) as rho. */
+    lees_edw_t * le = NULL;
+    field_options_t jopts = field_options_ndata_nhalo(3, opts->rho.nhcomm);
+    jopts.iodata = opts->rho.iodata;
+    field_create(pe, cs, le, "flux",   &jopts, &psi->jflux);
+    field_create(pe, cs, le, "flux_p", &jopts, &psi->jflux_p);
+    field_create(pe, cs, le, "flux_m", &jopts, &psi->jflux_m);
   }
 
   psi->nfreq_io = INT_MAX;
@@ -148,11 +164,15 @@ int psi_finalise(psi_t * psi) {
   assert(psi->psi);
 
   stencil_free(&psi->stencil);
+  field_free(psi->jflux_m);
+  field_free(psi->jflux_p);
+  field_free(psi->jflux);
   field_free(psi->rho);
   field_free(psi->psi);
 
   free(psi->valency);
   free(psi->diffusivity);
+  free(psi->mobility_elec);
 
   *psi = (psi_t) {0};
 
@@ -239,6 +259,23 @@ int psi_diffusivity(psi_t * obj, int n, double * diff) {
   assert(diff);
 
   *diff = obj->diffusivity[n];
+
+  return 0;
+}
+
+/*****************************************************************************
+ *
+ *  psi_mobility
+ *
+ *****************************************************************************/
+
+int psi_mobility_elec(psi_t * obj, int n, double * diff) {
+
+  assert(obj);
+  assert(n < obj->nk);
+  assert(diff);
+
+  *diff = obj->mobility_elec[n];
 
   return 0;
 }

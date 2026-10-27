@@ -1,0 +1,100 @@
+##############################################################################
+#
+#  lees-edwards-example1.inp
+#
+#  The code has been compiled with -D_D2Q9_ as we will consider a
+#  two dimensional problem. (The same input will work for other
+#  models, but the output will be slightly different.)
+#
+#  With the symmetric free energy, a droplet is placed in the
+#  centre of the Lx x Ly = 32 x 64 system.
+#
+#  Two Lees Edwards planes are used with Uy = 0.005.
+#  One can run for zero steps to see the initial conditions or 3200
+#  steps (Uyt = 16.0) to generate the output used in the examples.
+#
+#  We've only retained the relevant composition output (phi) and
+#  and velocity output (vel) at step 3200.
+#
+##############################################################################
+
+N_cycles 1
+
+##############################################################################
+#
+#  System
+#
+##############################################################################
+
+size 1200_1_1
+
+##############################################################################
+#
+#  Fluid parameters
+#
+##############################################################################
+
+viscosity 0.1
+temperature 0.0005
+
+##############################################################################
+#
+#  Free energy parameters
+#
+###############################################################################
+
+free_energy               symmetric_noise
+
+symmetric_a              -0.0625
+symmetric_b               0.0625
+symmetric_kappa           0.04
+
+phi_initialisation        drop
+phi_init_drop_radius      4.0
+phi_init_drop_amplitude  +1.0
+phi_init_drop_centred     yes
+
+mobility                  0.15
+
+fd_gradient_calculation   3d_7pt_fluid
+fd_advection_scheme_order 4
+
+###############################################################################
+#
+#  Colloid parameters
+#
+###############################################################################
+
+colloid_init        no_colloids
+
+###############################################################################
+#
+#  Periodic conditions / boundaries
+#
+###############################################################################
+
+periodicity 1_1_1
+
+###############################################################################
+#
+#  Output frequency and type
+#
+###############################################################################
+
+default_io_mode     mpiio
+default_io_format   ascii
+default_io_report   yes
+
+freq_statistics     1
+phi_io_freq            1
+vel_io_freq           100
+config_at_end       yes
+
+
+###############################################################################
+#
+#  Miscellaneous
+#
+###############################################################################
+
+random_seed -7361237
